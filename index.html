@@ -24,9 +24,6 @@
   <!-- Tesseract.js (클라이언트 OCR) -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
-  <!-- Panzoom (모바일 부드러운 핀치 줌 라이브러리) -->
-  <script src="https://unpkg.com/@panzoom/panzoom/dist/panzoom.min.js"></script>
-
   <style>
     :root {
       --primary: #6c5ce7;
@@ -99,8 +96,13 @@
       box-shadow: var(--shadow);
       transition: border-color 0.2s;
     }
-    .search-input:focus { border-color: var(--primary); }
-    .search-input::placeholder { color: #a4b0be; font-weight: 500; }
+    .search-input:focus {
+      border-color: var(--primary);
+    }
+    .search-input::placeholder {
+      color: #a4b0be;
+      font-weight: 500;
+    }
 
     /* Filters */
     .filter-sort-row {
@@ -290,7 +292,7 @@
     .ocr-loader.active { display: flex; animation: pulse 1.5s infinite; }
     @keyframes pulse { 0% { opacity: 0.7; } 50% { opacity: 1; } 100% { opacity: 0.7; } }
 
-    /* 이미지 확대 모달 & Panzoom 뷰어 */
+    /* 이미지 확대 모달 */
     .gift-view-card {
       background: white;
       border-radius: 24px;
@@ -331,24 +333,8 @@
       overflow: hidden;
       border-radius: 16px;
       background: #fdfdfd;
-      position: relative;
     }
-    .gift-view-img-box img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      display: block;
-      user-select: none;
-      -webkit-user-drag: none;
-    }
-    .zoom-tip {
-      font-size: 0.82rem;
-      color: #8395a7;
-      margin-top: 8px;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
+    .gift-view-img-box img { width: 100%; height: 100%; object-fit: contain; display: block; }
   </style>
 </head>
 <body>
@@ -442,10 +428,9 @@
       <button class="gift-modal-close-btn" onclick="closeImgModal()">
         <i class="fa-solid fa-xmark"></i>
       </button>
-      <div class="gift-view-img-box" id="pinchContainer">
+      <div class="gift-view-img-box">
         <img id="enlargedImg" src="" alt="기프티콘 바코드">
       </div>
-      <div class="zoom-tip"><i class="fa-solid fa-magnifying-glass-plus"></i> 손가락으로 자유롭게 확대/이동하세요</div>
     </div>
   </div>
 
@@ -465,12 +450,10 @@
     let gifticons = [];
     let currentGiftFilter = 'available';
     let editingGifticonExistingImg = null;
-    let panzoomInstance = null;
 
     const syncDot = document.getElementById('syncDot');
     const syncText = document.getElementById('syncStatusText');
 
-    // 공주네 쿠폰방 전용 DB (only_gifticons) 연결
     db.collection("couple_space").doc("only_gifticons").onSnapshot({ includeMetadataChanges: true }, (doc) => {
       if (doc.exists) {
         gifticons = doc.data().items || [];
@@ -602,9 +585,11 @@
       const searchKeyword = (document.getElementById('searchInput') ? document.getElementById('searchInput').value : '').trim().toLowerCase();
       let list = [...gifticons];
 
+      // 탭 필터링
       if (currentGiftFilter === 'available') list = list.filter(g => !g.isUsed);
       if (currentGiftFilter === 'used') list = list.filter(g => g.isUsed);
 
+      // 브랜드 / 상품명 검색 필터링
       if (searchKeyword) {
         list = list.filter(g => {
           const brand = (g.brand || '').toLowerCase();
@@ -696,40 +681,16 @@
       document.getElementById('addModal').classList.add('active');
     }
 
-    /* Panzoom 라이브러리 연동 */
-    function initPanzoom() {
-      const elem = document.getElementById('enlargedImg');
-      if (panzoomInstance) {
-        panzoomInstance.destroy();
-      }
-      panzoomInstance = Panzoom(elem, {
-        maxScale: 4.5,
-        minScale: 1,
-        contain: 'outside',
-        startScale: 1
-      });
-      elem.parentElement.addEventListener('wheel', panzoomInstance.zoomWithWheel);
-    }
-
     function viewImageById(id) {
       const target = gifticons.find(i => i.id === id);
       if (target && target.img) {
-        const img = document.getElementById('enlargedImg');
-        img.src = target.img;
+        document.getElementById('enlargedImg').src = target.img;
         document.getElementById('imgViewModal').classList.add('active');
-        setTimeout(() => {
-          initPanzoom();
-        }, 50);
       }
     }
 
     function closeImgModal() {
       document.getElementById('imgViewModal').classList.remove('active');
-      if (panzoomInstance) {
-        panzoomInstance.reset();
-        panzoomInstance.destroy();
-        panzoomInstance = null;
-      }
     }
 
     function saveItem() {

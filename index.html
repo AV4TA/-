@@ -459,28 +459,38 @@
       const text = rawText.replace(/\r/g, '');
       const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
-      const datePatterns = [
-        /(?:유효기간|만료일|기한|~)?\s*(202[0-9])[\.\-\/\s년]\s*([0-1]?[0-9])[\.\-\/\s월]\s*([0-3]?[0-9])\s*(?:일|까지)?/g,
-        /(202[0-9])(0[1-9]|1[0-2])([0-3][0-9])/g
-      ];
+      // 1. 유효기간/만료일 정규식 강화: 시작일~종료일 패턴 대응 및 모든 날짜 수집
+      const globalDateRegex = /(202[0-9])[\.\-\/\s년]\s*([0-1]?[0-9])[\.\-\/\s월]\s*([0-3]?[0-9])/g;
+      const allDates = [...text.matchAll(globalDateRegex)];
+      let foundDate = '';
 
-      let matchedDates = [];
-      for (let regex of datePatterns) {
-        const matches = [...text.matchAll(regex)];
-        for (let m of matches) {
-          const y = m[1];
-          const mo = m[2].padStart(2, '0');
-          const d = m[3].padStart(2, '0');
-          if (parseInt(mo) >= 1 && parseInt(mo) <= 12 && parseInt(d) >= 1 && parseInt(d) <= 31) {
-            matchedDates.push(`${y}-${mo}-${d}`);
-          }
+      if (allDates.length > 0) {
+        // 날짜가 여러 개(시작일, 종료일)인 경우 가장 마지막에 등장하는 만료일 선택
+        const lastMatch = allDates[allDates.length - 1];
+        const year = lastMatch[1];
+        const month = lastMatch[2].padStart(2, '0');
+        const day = lastMatch[3].padStart(2, '0');
+        
+        if (parseInt(month) >= 1 && parseInt(month) <= 12 && parseInt(day) >= 1 && parseInt(day) <= 31) {
+          foundDate = `${year}-${month}-${day}`;
         }
       }
 
-      if (matchedDates.length > 0) {
-        document.getElementById('giftDueDate').value = matchedDates[matchedDates.length - 1];
+      // 붙어있는 8자리 숫자 날짜 대응 (예: 20260831)
+      if (!foundDate) {
+        const compactRegex = /(202[0-9])(0[1-9]|1[0-2])([0-3][0-9])/g;
+        const compactMatches = [...text.matchAll(compactRegex)];
+        if (compactMatches.length > 0) {
+          const last = compactMatches[compactMatches.length - 1];
+          foundDate = `${last[1]}-${last[2]}-${last[3]}`;
+        }
       }
 
+      if (foundDate) {
+        document.getElementById('giftDueDate').value = foundDate;
+      }
+
+      // 2. 브랜드 자동 인식
       const brands = [
         '스타벅스', 'Starbucks', '투썸플레이스', '투썸', '메가커피', '컴포즈커피', '컴포즈',
         '배스킨라빈스', '베스킨라빈스', 'BHC', 'BBQ', '교촌치킨', '교촌', '맘스터치',
@@ -495,6 +505,7 @@
         }
       }
 
+      // 3. 상품명 자동 추출
       const ignoreWords = ['교환권', '모바일', '쿠폰', '바코드', '유효기간', '주문번호', '발행처', '사용처', '금액권', '사용불가', '원', 'No.', 'kakao', 'gift'];
       let candidateTitle = '';
 

@@ -431,6 +431,47 @@
         });
     }
 
+    // OCR 전처리: 흑백 및 명암 대비 증가
+    function preprocessImageForOCR(file, callback) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          const maxDim = 1600;
+          let width = img.width;
+          let height = img.height;
+          if (width > height && width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const imgData = ctx.getImageData(0, 0, width, height);
+          const d = imgData.data;
+          // 대비 증폭 및 이진화
+          for (let i = 0; i < d.length; i += 4) {
+            const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+            const contrast = (gray - 128) * 1.5 + 128;
+            const finalVal = contrast > 140 ? 255 : (contrast < 90 ? 0 : contrast);
+            d[i] = finalVal;
+            d[i + 1] = finalVal;
+            d[i + 2] = finalVal;
+          }
+          ctx.putImageData(imgData, 0, 0);
+          callback(canvas.toDataURL('image/png'));
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
     function handleImageOCR(input) {
       if (!input.files || !input.files[0]) return;
       const file = input.files[0];
@@ -438,20 +479,22 @@
       const loader = document.getElementById('ocrLoader');
       const ocrText = document.getElementById('ocrText');
       loader.classList.add('active');
-      ocrText.innerText = 'AI가 유효기간과 정보를 분석 중...';
+      ocrText.innerText = '이미지 선명화 및 AI 분석 중...';
 
-      Tesseract.recognize(file, 'kor+eng', {
-        logger: m => {
-          if (m.status === 'recognizing text') {
-            ocrText.innerText = `텍스트 분석 중... (${Math.round(m.progress * 100)}%)`;
+      preprocessImageForOCR(file, function(preprocessedDataUrl) {
+        Tesseract.recognize(preprocessedDataUrl, 'kor+eng', {
+          logger: m => {
+            if (m.status === 'recognizing text') {
+              ocrText.innerText = `텍스트 분석 중... (${Math.round(m.progress * 100)}%)`;
+            }
           }
-        }
-      }).then(({ data: { text } }) => {
-        loader.classList.remove('active');
-        extractGifticonInfo(text);
-      }).catch(err => {
-        console.warn("OCR Error:", err);
-        loader.classList.remove('active');
+        }).then(({ data: { text } }) => {
+          loader.classList.remove('active');
+          extractGifticonInfo(text);
+        }).catch(err => {
+          console.warn("OCR Error:", err);
+          loader.classList.remove('active');
+        });
       });
     }
 
@@ -459,60 +502,61 @@
       const text = rawText.replace(/\r/g, '');
       const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
-      // 1. 유효기간/만료일 정규식 강화: 시작일~종료일 패턴 대응 및 모든 날짜 수집
-      const globalDateRegex = /(202[0-9])[\.\-\/\s년]\s*([0-1]?[0-9])[\.\-\/\s월]\s*([0-3]?[0-9])/g;
-      const allDates = [...text.matchAll(globalDateRegex)];
-      let foundDate = '';
+      // 다중 날짜 포맷 검출 (4자리/2자리 연도, 점/대시/슬래시/한글 공백 유연 대응)
+      const datePatterns = [
+        /(202[0-9])[\.\-\/\s년]\s*([0-1]?[0-9])[\.\-\/\s월]\s*([0-3]?[0-9])/g,
+        /(202[0-9])\s*([0-1][0-9])\s*([0-3][0-9])/g,
+        /(2[4-9])[\.\-\/\s년]\s*([0-1]?[0-9])[\.\-\/\s월]\s*([0-3]?[0-9])/g
+      ];
 
-      if (allDates.length > 0) {
-        // 날짜가 여러 개(시작일, 종료일)인 경우 가장 마지막에 등장하는 만료일 선택
-        const lastMatch = allDates[allDates.length - 1];
-        const year = lastMatch[1];
-        const month = lastMatch[2].padStart(2, '0');
-        const day = lastMatch[3].padStart(2, '0');
-        
-        if (parseInt(month) >= 1 && parseInt(month) <= 12 && parseInt(day) >= 1 && parseInt(day) <= 31) {
-          foundDate = `${year}-${month}-${day}`;
+      let foundDates = [];
+
+      for (let regex of datePatterns) {
+        const matches = [...text.matchAll(regex)];
+        for (let m of matches) {
+          let y = m[1];
+          if (y.length === 2) y = "20" + y;
+          const mo = m[2].padStart(2, '0');
+          const d = m[3].padStart(2, '0');
+          const numMo = parseInt(mo, 10);
+          const numD = parseInt(d, 10);
+
+          if (numMo >= 1 && numMo <= 12 && numD >= 1 && numD <= 31) {
+            foundDates.push(`${y}-${mo}-${d}`);
+          }
         }
       }
 
-      // 붙어있는 8자리 숫자 날짜 대응 (예: 20260831)
-      if (!foundDate) {
-        const compactRegex = /(202[0-9])(0[1-9]|1[0-2])([0-3][0-9])/g;
-        const compactMatches = [...text.matchAll(compactRegex)];
-        if (compactMatches.length > 0) {
-          const last = compactMatches[compactMatches.length - 1];
-          foundDate = `${last[1]}-${last[2]}-${last[3]}`;
-        }
+      // 날짜가 여러 개 추출된 경우(시작일, 종료일), 가장 뒤쪽의 만료일 선택
+      if (foundDates.length > 0) {
+        document.getElementById('giftDueDate').value = foundDates[foundDates.length - 1];
       }
 
-      if (foundDate) {
-        document.getElementById('giftDueDate').value = foundDate;
-      }
-
-      // 2. 브랜드 자동 인식
+      // 브랜드 자동 인식
       const brands = [
         '스타벅스', 'Starbucks', '투썸플레이스', '투썸', '메가커피', '컴포즈커피', '컴포즈',
         '배스킨라빈스', '베스킨라빈스', 'BHC', 'BBQ', '교촌치킨', '교촌', '맘스터치',
         '올리브영', 'CU', 'GS25', '세븐일레븐', '버거킹', '맥도날드', '도미노피자',
-        '이디야', '파리바게뜨', '파리바게트', '뚜레쥬르', '배달의민족', '카카오톡', '요기요'
+        '이디야', '파리바게뜨', '파리바게트', '뚜레쥬르', '배달의민족', '카카오톡', '요기요',
+        '설빙', '빽다방', '공차', '써브웨이', '서브웨이', '할리스', '폴바셋'
       ];
 
       for (let brand of brands) {
         if (text.includes(brand)) {
-          document.getElementById('giftBrand').value = brand.replace('베스킨라빈스', '배스킨라빈스').replace('파리바게트', '파리바게뜨');
+          document.getElementById('giftBrand').value = brand
+            .replace('베스킨라빈스', '배스킨라빈스')
+            .replace('파리바게트', '파리바게뜨')
+            .replace('서브웨이', '써브웨이');
           break;
         }
       }
 
-      // 3. 상품명 자동 추출
-      const ignoreWords = ['교환권', '모바일', '쿠폰', '바코드', '유효기간', '주문번호', '발행처', '사용처', '금액권', '사용불가', '원', 'No.', 'kakao', 'gift'];
+      // 상품명 자동 추출
+      const ignoreWords = ['교환권', '모바일', '쿠폰', '바코드', '유효기간', '주문번호', '발행처', '사용처', '금액권', '사용불가', '원', 'No.', 'kakao', 'gift', '유효', '기간'];
       let candidateTitle = '';
 
       for (let line of lines) {
-        if (/(202[0-9])/.test(line)) continue;
-        if (/^\d+$/.test(line.replace(/[-\s]/g, ''))) continue;
-        if (line.length < 2 || line.length > 35) continue;
+        if (/(202[0-9])/.test(line) || /^\d+$/.test(line.replace(/[-\s]/g, '')) || line.length < 2 || line.length > 35) continue;
         
         let hasIgnore = ignoreWords.some(w => line.includes(w));
         if (!hasIgnore) {

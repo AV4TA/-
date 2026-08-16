@@ -96,13 +96,8 @@
       box-shadow: var(--shadow);
       transition: border-color 0.2s;
     }
-    .search-input:focus {
-      border-color: var(--primary);
-    }
-    .search-input::placeholder {
-      color: #a4b0be;
-      font-weight: 500;
-    }
+    .search-input:focus { border-color: var(--primary); }
+    .search-input::placeholder { color: #a4b0be; font-weight: 500; }
 
     /* Filters */
     .filter-sort-row {
@@ -292,7 +287,7 @@
     .ocr-loader.active { display: flex; animation: pulse 1.5s infinite; }
     @keyframes pulse { 0% { opacity: 0.7; } 50% { opacity: 1; } 100% { opacity: 0.7; } }
 
-    /* 이미지 확대 모달 */
+    /* 이미지 확대 모달 & 핀치 줌 뷰어 */
     .gift-view-card {
       background: white;
       border-radius: 24px;
@@ -333,8 +328,26 @@
       overflow: hidden;
       border-radius: 16px;
       background: #fdfdfd;
+      touch-action: none; /* 브라우저 기본 스크롤 방지 */
+      position: relative;
     }
-    .gift-view-img-box img { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .gift-view-img-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      transform-origin: center center;
+      transition: transform 0.05s ease-out;
+      will-change: transform;
+    }
+    .zoom-tip {
+      font-size: 0.78rem;
+      color: #8395a7;
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
   </style>
 </head>
 <body>
@@ -422,15 +435,16 @@
     </div>
   </div>
 
-  <!-- 이미지 확대 모달 -->
+  <!-- 이미지 확대 모달 (핀치 줌 지원) -->
   <div class="modal-overlay" id="imgViewModal" onclick="closeImgModal()">
     <div class="gift-view-card" onclick="event.stopPropagation()">
       <button class="gift-modal-close-btn" onclick="closeImgModal()">
         <i class="fa-solid fa-xmark"></i>
       </button>
-      <div class="gift-view-img-box">
+      <div class="gift-view-img-box" id="pinchContainer">
         <img id="enlargedImg" src="" alt="기프티콘 바코드">
       </div>
+      <div class="zoom-tip"><i class="fa-solid fa-magnifying-glass-plus"></i> 손가락 두 개로 자유롭게 확대/축소할 수 있어요</div>
     </div>
   </div>
 
@@ -585,11 +599,9 @@
       const searchKeyword = (document.getElementById('searchInput') ? document.getElementById('searchInput').value : '').trim().toLowerCase();
       let list = [...gifticons];
 
-      // 탭 필터링
       if (currentGiftFilter === 'available') list = list.filter(g => !g.isUsed);
       if (currentGiftFilter === 'used') list = list.filter(g => g.isUsed);
 
-      // 브랜드 / 상품명 검색 필터링
       if (searchKeyword) {
         list = list.filter(g => {
           const brand = (g.brand || '').toLowerCase();
@@ -681,17 +693,101 @@
       document.getElementById('addModal').classList.add('active');
     }
 
+    /* 핀치 줌 & 드래그 제스처 변수 */
+    let currentScale = 1;
+    let posX = 0;
+    let posY = 0;
+    let startX = 0;
+    let startY = 0;
+    let initialDistance = 0;
+    let isDragging = false;
+
+    function resetZoom() {
+      currentScale = 1;
+      posX = 0;
+      posY = 0;
+      updateTransform();
+    }
+
+    function updateTransform() {
+      const img = document.getElementById('enlargedImg');
+      if (img) {
+        img.style.transform = `translate(${posX}px, ${posY}px) scale(${currentScale})`;
+      }
+    }
+
     function viewImageById(id) {
       const target = gifticons.find(i => i.id === id);
       if (target && target.img) {
-        document.getElementById('enlargedImg').src = target.img;
+        const img = document.getElementById('enlargedImg');
+        img.src = target.img;
+        resetZoom();
         document.getElementById('imgViewModal').classList.add('active');
       }
     }
 
     function closeImgModal() {
       document.getElementById('imgViewModal').classList.remove('active');
+      resetZoom();
     }
+
+    // 핀치 줌 및 터치 드래그 이벤트 리스너
+    const pinchBox = document.getElementById('pinchContainer');
+
+    function getDistance(touches) {
+      const dx = touches[0].clientX - touches[1].clientX;
+      const dy = touches[0].clientY - touches[1].clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    pinchBox.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 2) {
+        initialDistance = getDistance(e.touches);
+      } else if (e.touches.length === 1) {
+        isDragging = true;
+        startX = e.touches[0].clientX - posX;
+        startY = e.touches[0].clientY - posY;
+      }
+    }, { passive: false });
+
+    pinchBox.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      if (e.touches.length === 2) {
+        const dist = getDistance(e.touches);
+        if (initialDistance > 0) {
+          const factor = dist / initialDistance;
+          currentScale = Math.min(Math.max(1, currentScale * factor), 4);
+          initialDistance = dist;
+          updateTransform();
+        }
+      } else if (e.touches.length === 1 && isDragging && currentScale > 1) {
+        posX = e.touches[0].clientX - startX;
+        posY = e.touches[0].clientY - startY;
+        updateTransform();
+      }
+    }, { passive: false });
+
+    pinchBox.addEventListener('touchend', (e) => {
+      if (e.touches.length < 2) initialDistance = 0;
+      if (e.touches.length === 0) isDragging = false;
+      if (currentScale <= 1) {
+        posX = 0;
+        posY = 0;
+        updateTransform();
+      }
+    });
+
+    // 더블 탭 시 확대/축소 토글
+    let lastTap = 0;
+    pinchBox.addEventListener('touchend', (e) => {
+      const now = new Date().getTime();
+      const diff = now - lastTap;
+      if (diff < 300 && diff > 0) {
+        if (currentScale > 1) resetZoom();
+        else { currentScale = 2.5; updateTransform(); }
+      }
+      lastTap = now;
+    });
 
     function saveItem() {
       const editId = document.getElementById('editItemId').value;

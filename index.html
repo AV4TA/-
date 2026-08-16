@@ -70,6 +70,40 @@
     .sync-dot.online { background: #2ed573; box-shadow: 0 0 8px #2ed573; }
     .sync-dot.syncing { background: #ffa502; }
 
+    /* Search Bar */
+    .search-box-wrap {
+      margin-bottom: 14px;
+      position: relative;
+    }
+    .search-box-wrap i {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-sub);
+      font-size: 1rem;
+    }
+    .search-input {
+      width: 100%;
+      padding: 12px 14px 12px 42px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: white;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text);
+      outline: none;
+      box-shadow: var(--shadow);
+      transition: border-color 0.2s;
+    }
+    .search-input:focus {
+      border-color: var(--primary);
+    }
+    .search-input::placeholder {
+      color: #a4b0be;
+      font-weight: 500;
+    }
+
     /* Filters */
     .filter-sort-row {
       display: flex;
@@ -321,6 +355,12 @@
       <span id="syncStatusText">서버 연결 중...</span>
     </div>
 
+    <!-- 브랜드 / 상품명 검색창 -->
+    <div class="search-box-wrap">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <input type="text" id="searchInput" class="search-input" placeholder="브랜드명 또는 상품명 검색..." oninput="renderGifticons()">
+    </div>
+
     <div class="filter-sort-row">
       <div class="sub-tabs">
         <button class="sub-tab-btn active" onclick="filterGifticons('available', this)">사용 가능</button>
@@ -440,7 +480,6 @@
         });
     }
 
-    // 커플페이지(gifticon.html) 원본 검증 OCR 파이프라인
     function handleImageOCR(input) {
       if (!input.files || !input.files[0]) return;
       const file = input.files[0];
@@ -465,12 +504,10 @@
       });
     }
 
-    // 커플페이지(gifticon.html) 원본 날짜/브랜드/상품명 파싱 엔진
     function extractGifticonInfo(rawText) {
       const text = rawText.replace(/\r/g, '');
       const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
-      // 시작일/종료일 중 가장 마지막에 있는 종료일을 1순위로 추출
       const globalDateRegex = /(202[0-9])[\.\-\/\s년]\s*([0-1]?[0-9])[\.\-\/\s월]\s*([0-3]?[0-9])/g;
       const allDates = [...text.matchAll(globalDateRegex)];
       if (allDates.length > 0) {
@@ -481,7 +518,6 @@
         document.getElementById('giftDueDate').value = `${year}-${month}-${day}`;
       }
 
-      // 브랜드 자동 인식
       const brands = ['스타벅스', 'Starbucks', '투썸플레이스', '투썸', '메가커피', '컴포즈', '배스킨라빈스', 'BHC', 'BBQ', '교촌', '올리브영', 'CU', 'GS25', '버거킹', '맥도날드', '도미노피자', '이디야', '파리바게뜨'];
       for (let b of brands) {
         if (text.includes(b)) { 
@@ -490,7 +526,6 @@
         }
       }
 
-      // 상품명 자동 추출
       const ignoreWords = ['교환권', '모바일', '쿠폰', '바코드', '유효기간', '주문번호', '발행처', '원', 'kakao'];
       for (let line of lines) {
         if (/(202[0-9])/.test(line) || /^\d+$/.test(line.replace(/[-\s]/g, '')) || line.length < 2 || line.length > 35) continue;
@@ -547,10 +582,22 @@
 
     function renderGifticons() {
       const container = document.getElementById('gifticonContainer');
+      const searchKeyword = (document.getElementById('searchInput') ? document.getElementById('searchInput').value : '').trim().toLowerCase();
       let list = [...gifticons];
 
+      // 탭 필터링
       if (currentGiftFilter === 'available') list = list.filter(g => !g.isUsed);
       if (currentGiftFilter === 'used') list = list.filter(g => g.isUsed);
+
+      // 브랜드 / 상품명 검색 필터링
+      if (searchKeyword) {
+        list = list.filter(g => {
+          const brand = (g.brand || '').toLowerCase();
+          const name = (g.name || '').toLowerCase();
+          const memo = (g.memo || '').toLowerCase();
+          return brand.includes(searchKeyword) || name.includes(searchKeyword) || memo.includes(searchKeyword);
+        });
+      }
       
       const sortType = document.getElementById('sortSelect').value;
       if (sortType === 'dday') {
@@ -567,8 +614,8 @@
         container.innerHTML = `
           <div style="grid-column: 1 / -1; text-align:center; padding: 60px 10px; color:#a4b0be;">
             <i class="fa-solid fa-gift" style="font-size:3.2rem; margin-bottom:14px; color:#c7d2fe;"></i>
-            <p style="font-size:1.1rem; font-weight:800; color:#4b5563;">보관된 기프티콘이 없습니다.</p>
-            <p style="font-size:0.92rem; margin-top:6px;">우측 하단의 <b>+</b> 버튼을 눌러 사진을 올려보세요!</p>
+            <p style="font-size:1.1rem; font-weight:800; color:#4b5563;">${searchKeyword ? '검색 결과가 없습니다.' : '보관된 기프티콘이 없습니다.'}</p>
+            <p style="font-size:0.92rem; margin-top:6px;">${searchKeyword ? '다른 검색어를 입력해보세요.' : '우측 하단의 <b>+</b> 버튼을 눌러 사진을 올려보세요!'}</p>
           </div>
         `;
         return;

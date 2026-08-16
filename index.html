@@ -24,7 +24,7 @@
   <!-- Tesseract.js (클라이언트 OCR) -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
-  <!-- Panzoom (모바일 부드러운 핀치 줌 라이브러리) -->
+  <!-- Panzoom (모바일 핀치 줌 라이브러리) -->
   <script src="https://unpkg.com/@panzoom/panzoom/dist/panzoom.min.js"></script>
 
   <style>
@@ -102,23 +102,37 @@
     .search-input:focus { border-color: var(--primary); }
     .search-input::placeholder { color: #a4b0be; font-weight: 500; }
 
-    /* Filters */
+    /* Filters (가로 스크롤 가능) */
     .filter-sort-row {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .sub-tabs-container {
       display: flex;
       justify-content: space-between;
       align-items: center;
       gap: 8px;
-      margin-bottom: 16px;
     }
-    .sub-tabs { display: flex; gap: 6px; }
+    .sub-tabs {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .sub-tabs::-webkit-scrollbar { display: none; }
     .sub-tab-btn {
+      white-space: nowrap;
       background: white;
       border: 1px solid var(--border);
       color: var(--text-sub);
-      padding: 9px 16px;
+      padding: 8px 14px;
       border-radius: 12px;
       font-weight: 700;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       cursor: pointer;
       transition: all 0.2s;
     }
@@ -128,15 +142,21 @@
       border-color: var(--primary);
       box-shadow: 0 4px 10px rgba(108, 92, 231, 0.3);
     }
+    .sub-tab-btn.trash-tab.active {
+      background: #eb4d4b;
+      border-color: #eb4d4b;
+      box-shadow: 0 4px 10px rgba(235, 77, 75, 0.3);
+    }
     .sort-select {
-      padding: 9px 12px;
+      padding: 8px 10px;
       border-radius: 12px;
       border: 1px solid var(--border);
-      font-size: 0.9rem;
+      font-size: 0.88rem;
       font-weight: 600;
       color: #57606f;
       background: white;
       outline: none;
+      white-space: nowrap;
     }
 
     /* Grid & Cards */
@@ -152,6 +172,7 @@
       position: relative;
     }
     .gift-card.used { opacity: 0.55; filter: grayscale(80%); }
+    .gift-card.in-trash { border: 1.5px dashed #ff7675; }
     .gift-img-wrap {
       height: 140px;
       background: #f8f9fc;
@@ -163,7 +184,13 @@
       overflow: hidden;
       padding: 6px;
     }
-    .gift-img-wrap img { width: 100%; height: 100%; object-fit: contain; border-radius: 8px; }
+    .gift-img-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: 8px;
+      image-orientation: from-image;
+    }
     .gift-dday-badge {
       position: absolute;
       top: 8px;
@@ -201,6 +228,7 @@
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
     .gift-action-btn.del { color: #ff4757; }
+    .gift-action-btn.restore { color: #2ed573; }
 
     .gift-body { padding: 14px; flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
     .gift-brand { font-size: 0.88rem; color: var(--primary); font-weight: 800; }
@@ -270,9 +298,10 @@
     .form-group { margin-bottom: 16px; }
     .form-group label { display: block; font-size: 0.95rem; font-weight: 700; margin-bottom: 7px; color: #333; }
     .form-control { width: 100%; padding: 12px 15px; border-radius: 12px; border: 1px solid var(--border); font-size: 1rem; outline: none; }
-    .btn { flex: 1; padding: 14px; border-radius: 12px; border: none; font-weight: 800; cursor: pointer; font-size: 1rem; }
+    .btn { flex: 1; padding: 14px; border-radius: 12px; border: none; font-weight: 800; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; gap: 8px; }
     .btn-primary { background: var(--primary); color: white; }
     .btn-secondary { background: #f1f2f6; color: #57606f; }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
     .ocr-loader {
       display: none;
@@ -340,6 +369,7 @@
       display: block;
       user-select: none;
       -webkit-user-drag: none;
+      image-orientation: from-image;
     }
     .zoom-tip {
       font-size: 0.82rem;
@@ -376,23 +406,26 @@
     </div>
 
     <div class="filter-sort-row">
-      <div class="sub-tabs">
-        <button class="sub-tab-btn active" onclick="filterGifticons('available', this)">사용 가능</button>
-        <button class="sub-tab-btn" onclick="filterGifticons('all', this)">전체</button>
-        <button class="sub-tab-btn" onclick="filterGifticons('used', this)">사용 완료</button>
+      <div class="sub-tabs-container">
+        <div class="sub-tabs">
+          <button class="sub-tab-btn active" onclick="filterGifticons('available', this)">사용 가능</button>
+          <button class="sub-tab-btn" onclick="filterGifticons('all', this)">전체</button>
+          <button class="sub-tab-btn" onclick="filterGifticons('used', this)">사용 완료</button>
+          <button class="sub-tab-btn trash-tab" onclick="filterGifticons('trash', this)">🗑️ 휴지통</button>
+        </div>
+        <select class="sort-select" id="sortSelect" onchange="renderGifticons()">
+          <option value="dday">⏰ 임박순</option>
+          <option value="dday_desc">⏳ 여유순</option>
+          <option value="name">🔤 가나다</option>
+          <option value="recent">🆕 등록순</option>
+        </select>
       </div>
-      <select class="sort-select" id="sortSelect" onchange="renderGifticons()">
-        <option value="dday">⏰ 유효기간 임박순</option>
-        <option value="dday_desc">⏳ 유효기간 여유순</option>
-        <option value="name">🔤 이름 가나다순</option>
-        <option value="recent">🆕 최신 등록순</option>
-      </select>
     </div>
 
     <div class="gift-grid" id="gifticonContainer"></div>
   </div>
 
-  <button class="fab" onclick="openAddModal()"><i class="fa-solid fa-plus"></i></button>
+  <button class="fab" id="fabAddBtn" onclick="openAddModal()"><i class="fa-solid fa-plus"></i></button>
 
   <!-- 추가/수정 모달 -->
   <div class="modal-overlay" id="addModal">
@@ -431,7 +464,7 @@
       
       <div style="display:flex; gap:10px; margin-top:20px;">
         <button class="btn btn-secondary" onclick="closeModal()">취소</button>
-        <button class="btn btn-primary" onclick="saveItem()">저장하기</button>
+        <button class="btn btn-primary" id="btnSaveSubmit" onclick="saveItem()">저장하기</button>
       </div>
     </div>
   </div>
@@ -468,7 +501,9 @@
     let gifticons = [];
     let currentGiftFilter = 'available';
     let editingGifticonExistingImg = null;
+    let editingGifticonExistingThumb = null;
     let panzoomInstance = null;
+    let currentOcrRequestId = 0; // OCR 메모리 누수 방지용 토큰
 
     const syncDot = document.getElementById('syncDot');
     const syncText = document.getElementById('syncStatusText');
@@ -502,6 +537,7 @@
     function handleImageOCR(input) {
       if (!input.files || !input.files[0]) return;
       const file = input.files[0];
+      const requestId = ++currentOcrRequestId;
 
       const loader = document.getElementById('ocrLoader');
       const ocrText = document.getElementById('ocrText');
@@ -510,16 +546,20 @@
 
       Tesseract.recognize(file, 'kor+eng', {
         logger: m => {
+          if (requestId !== currentOcrRequestId) return;
           if (m.status === 'recognizing text') {
             ocrText.innerText = `텍스트 분석 중... (${Math.round(m.progress * 100)}%)`;
           }
         }
       }).then(({ data: { text } }) => {
+        if (requestId !== currentOcrRequestId) return; // 모달이 닫혔거나 다른 이미지가 들어온 경우 무시
         loader.classList.remove('active');
         extractGifticonInfo(text);
       }).catch(err => {
-        console.warn("OCR Error:", err);
-        loader.classList.remove('active');
+        if (requestId === currentOcrRequestId) {
+          console.warn("OCR Error:", err);
+          loader.classList.remove('active');
+        }
       });
     }
 
@@ -527,6 +567,7 @@
       const text = rawText.replace(/\r/g, '');
       const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
+      // 연도 인식 (2020년대 ~ 2030년대)
       const globalDateRegex = /(202[0-9]|203[0-9])[\.\-\/\s년]\s*([0-1]?[0-9])[\.\-\/\s월]\s*([0-3]?[0-9])/g;
       const allDates = [...text.matchAll(globalDateRegex)];
       if (allDates.length > 0) {
@@ -558,32 +599,38 @@
       }
     }
 
-    function compressAndSaveImage(file, callback) {
+    // 트래픽 절감을 위한 듀얼 압축 (원본 1200px + 썸네일 300px)
+    function processDualImages(file, callback) {
       const reader = new FileReader();
       reader.onload = function(e) {
         const img = new Image();
         img.onload = function() {
-          const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
-          const maxDim = 1200;
+          function resizeCanvas(maxDim, quality) {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
 
-          if (width > height && width > maxDim) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          } else if (height > maxDim) {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
+            if (width > height && width > maxDim) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else if (height > maxDim) {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, 0, 0, width, height);
+            return canvas.toDataURL('image/jpeg', quality);
           }
 
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = 'high';
-          ctx.drawImage(img, 0, 0, width, height);
-          
-          callback(canvas.toDataURL('image/jpeg', 0.88));
+          const originalBase64 = resizeCanvas(1200, 0.88);
+          const thumbBase64 = resizeCanvas(300, 0.70);
+
+          callback(originalBase64, thumbBase64);
         };
         img.src = e.target.result;
       };
@@ -607,8 +654,14 @@
       const searchKeyword = (document.getElementById('searchInput') ? document.getElementById('searchInput').value : '').trim().toLowerCase();
       let list = [...gifticons];
 
-      if (currentGiftFilter === 'available') list = list.filter(g => !g.isUsed);
-      if (currentGiftFilter === 'used') list = list.filter(g => g.isUsed);
+      // 휴지통 필터링 분기
+      if (currentGiftFilter === 'trash') {
+        list = list.filter(g => g.isDeleted === true);
+      } else {
+        list = list.filter(g => !g.isDeleted);
+        if (currentGiftFilter === 'available') list = list.filter(g => !g.isUsed);
+        if (currentGiftFilter === 'used') list = list.filter(g => g.isUsed);
+      }
 
       if (searchKeyword) {
         list = list.filter(g => {
@@ -631,26 +684,35 @@
       }
 
       if (list.length === 0) {
+        const isTrash = currentGiftFilter === 'trash';
         container.innerHTML = `
           <div style="grid-column: 1 / -1; text-align:center; padding: 60px 10px; color:#a4b0be;">
-            <i class="fa-solid fa-gift" style="font-size:3.2rem; margin-bottom:14px; color:#c7d2fe;"></i>
-            <p style="font-size:1.1rem; font-weight:800; color:#4b5563;">${searchKeyword ? '검색 결과가 없습니다.' : '보관된 기프티콘이 없습니다.'}</p>
-            <p style="font-size:0.92rem; margin-top:6px;">${searchKeyword ? '다른 검색어를 입력해보세요.' : '우측 하단의 <b>+</b> 버튼을 눌러 사진을 올려보세요!'}</p>
+            <i class="fa-solid ${isTrash ? 'fa-trash-can' : 'fa-gift'}" style="font-size:3.2rem; margin-bottom:14px; color:#c7d2fe;"></i>
+            <p style="font-size:1.1rem; font-weight:800; color:#4b5563;">${searchKeyword ? '검색 결과가 없습니다.' : (isTrash ? '휴지통이 비어있습니다.' : '보관된 기프티콘이 없습니다.')}</p>
+            <p style="font-size:0.92rem; margin-top:6px;">${searchKeyword ? '다른 검색어를 입력해보세요.' : (isTrash ? '삭제된 쿠폰이 여기에 보관됩니다.' : '우측 하단의 <b>+</b> 버튼을 눌러 사진을 올려보세요!')}</p>
           </div>
         `;
         return;
       }
 
+      const isTrashView = currentGiftFilter === 'trash';
+
       container.innerHTML = list.map(g => {
         const dday = getGiftDDay(g.dueDate);
+        const displayImg = g.thumbImg || g.img || 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=400';
         return `
-          <div class="gift-card ${g.isUsed ? 'used' : ''}">
+          <div class="gift-card ${g.isUsed ? 'used' : ''} ${isTrashView ? 'in-trash' : ''}">
             <div class="gift-quick-actions">
-              <button class="gift-action-btn" title="수정" onclick="editGifticon('${g.id}')"><i class="fa-solid fa-pen"></i></button>
-              <button class="gift-action-btn del" title="삭제" onclick="deleteGifticon('${g.id}')"><i class="fa-solid fa-trash-can"></i></button>
+              ${isTrashView ? `
+                <button class="gift-action-btn restore" title="복구하기" onclick="restoreGifticon('${g.id}')"><i class="fa-solid fa-rotate-left"></i></button>
+                <button class="gift-action-btn del" title="완전 삭제" onclick="permanentDeleteGifticon('${g.id}')"><i class="fa-solid fa-xmark"></i></button>
+              ` : `
+                <button class="gift-action-btn" title="수정" onclick="editGifticon('${g.id}')"><i class="fa-solid fa-pen"></i></button>
+                <button class="gift-action-btn del" title="휴지통으로 이동" onclick="softDeleteGifticon('${g.id}')"><i class="fa-solid fa-trash-can"></i></button>
+              `}
             </div>
             <div class="gift-img-wrap" onclick="viewImageById('${g.id}')">
-              <img src="${g.img || 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=400'}" alt="쿠폰">
+              <img src="${displayImg}" alt="쿠폰">
               <div class="gift-dday-badge ${dday.urgent ? 'urgent' : ''}">${g.isUsed ? '사용완료' : dday.text}</div>
             </div>
             <div class="gift-body">
@@ -661,9 +723,15 @@
               </div>
               <div class="gift-footer">
                 <div class="gift-due-text">~${g.dueDate || '무기한'}</div>
-                <button class="btn-toggle-use ${g.isUsed ? 'is-used' : ''}" onclick="toggleGiftUse('${g.id}')">
-                  ${g.isUsed ? '취소' : '사용하기'}
-                </button>
+                ${!isTrashView ? `
+                  <button class="btn-toggle-use ${g.isUsed ? 'is-used' : ''}" onclick="toggleGiftUse('${g.id}')">
+                    ${g.isUsed ? '취소' : '사용하기'}
+                  </button>
+                ` : `
+                  <button class="btn-toggle-use" style="background:#ff7675; color:white;" onclick="restoreGifticon('${g.id}')">
+                    복구하기
+                  </button>
+                `}
               </div>
             </div>
           </div>
@@ -682,8 +750,33 @@
       }
     }
 
-    function deleteGifticon(id) {
-      if (confirm('이 기프티콘을 삭제할까요?')) {
+    // 소프트 삭제 (휴지통 이동)
+    function softDeleteGifticon(id) {
+      if (confirm('이 기프티콘을 휴지통으로 이동할까요?')) {
+        setSyncStatus(true);
+        giftCollection.doc(id).update({
+          isDeleted: true,
+          deletedAt: Date.now()
+        }).then(() => {
+          setSyncStatus(false);
+        }).catch(err => { console.error(err); setSyncStatus(false); });
+      }
+    }
+
+    // 휴지통 복구
+    function restoreGifticon(id) {
+      setSyncStatus(true);
+      giftCollection.doc(id).update({
+        isDeleted: false,
+        deletedAt: null
+      }).then(() => {
+        setSyncStatus(false);
+      }).catch(err => { console.error(err); setSyncStatus(false); });
+    }
+
+    // 완전 영구 삭제
+    function permanentDeleteGifticon(id) {
+      if (confirm('영구 삭제하시겠습니까? 복구할 수 없습니다.')) {
         setSyncStatus(true);
         giftCollection.doc(id).delete()
           .then(() => setSyncStatus(false))
@@ -700,6 +793,7 @@
       document.getElementById('giftDueDate').value = g.dueDate || '';
       document.getElementById('itemMemo').value = g.memo || '';
       editingGifticonExistingImg = g.img || null;
+      editingGifticonExistingThumb = g.thumbImg || null;
       document.getElementById('modalTitle').innerText = '기프티콘 수정';
       document.getElementById('addModal').classList.add('active');
     }
@@ -721,13 +815,16 @@
 
     function viewImageById(id) {
       const target = gifticons.find(i => i.id === id);
-      if (target && target.img) {
-        const img = document.getElementById('enlargedImg');
-        img.src = target.img;
-        document.getElementById('imgViewModal').classList.add('active');
-        setTimeout(() => {
-          initPanzoom();
-        }, 50);
+      if (target) {
+        const fullImg = target.img || target.thumbImg;
+        if (fullImg) {
+          const img = document.getElementById('enlargedImg');
+          img.src = fullImg;
+          document.getElementById('imgViewModal').classList.add('active');
+          setTimeout(() => {
+            initPanzoom();
+          }, 50);
+        }
       }
     }
 
@@ -747,12 +844,16 @@
       const dueDate = document.getElementById('giftDueDate').value;
       const memo = document.getElementById('itemMemo').value.trim();
       const fileInput = document.getElementById('giftImage');
+      const submitBtn = document.getElementById('btnSaveSubmit');
 
       if (!name) return alert('상품명을 입력해주세요!');
 
+      // 중복 클릭 방지 (버튼 비활성화)
+      submitBtn.disabled = true;
+      submitBtn.innerText = '저장 중...';
       setSyncStatus(true);
 
-      const handleSave = (imgData) => {
+      const handleSave = (origImg, thumbImg) => {
         const docId = editId || String(Date.now());
         const isNew = !editId;
         const dataObj = {
@@ -763,15 +864,20 @@
           updatedAt: Date.now()
         };
 
-        if (imgData) dataObj.img = imgData;
+        if (origImg) dataObj.img = origImg;
+        if (thumbImg) dataObj.thumbImg = thumbImg;
+
         if (isNew) {
           dataObj.isUsed = false;
+          dataObj.isDeleted = false;
           dataObj.createdAt = Date.now();
         }
 
         giftCollection.doc(docId).set(dataObj, { merge: true })
           .then(() => {
             setSyncStatus(false);
+            submitBtn.disabled = false;
+            submitBtn.innerText = '저장하기';
             closeModal();
             if (isNew) {
               alert('추가가 완료되었습니다! 🎁');
@@ -782,14 +888,16 @@
           .catch(err => {
             console.error("저장 실패:", err);
             setSyncStatus(false);
+            submitBtn.disabled = false;
+            submitBtn.innerText = '저장하기';
             alert("저장 중 오류가 발생했습니다: " + err.message);
           });
       };
 
       if (fileInput.files && fileInput.files[0]) {
-        compressAndSaveImage(fileInput.files[0], handleSave);
+        processDualImages(fileInput.files[0], handleSave);
       } else {
-        handleSave(editingGifticonExistingImg || 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=400');
+        handleSave(editingGifticonExistingImg, editingGifticonExistingThumb);
       }
     }
 
@@ -797,6 +905,13 @@
       currentGiftFilter = type;
       document.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
+
+      const fab = document.getElementById('fabAddBtn');
+      if (type === 'trash') {
+        fab.style.display = 'none';
+      } else {
+        fab.style.display = 'flex';
+      }
       renderGifticons();
     }
 
@@ -804,10 +919,12 @@
       document.getElementById('modalTitle').innerText = '새 기프티콘 추가';
       document.getElementById('editItemId').value = '';
       editingGifticonExistingImg = null;
+      editingGifticonExistingThumb = null;
       document.getElementById('addModal').classList.add('active');
     }
 
     function closeModal() {
+      currentOcrRequestId++; // 진행 중인 OCR 분석 토큰 무효화
       document.getElementById('addModal').classList.remove('active');
       document.getElementById('itemName').value = '';
       document.getElementById('itemMemo').value = '';
@@ -816,7 +933,11 @@
       document.getElementById('giftImage').value = '';
       document.getElementById('editItemId').value = '';
       document.getElementById('ocrLoader').classList.remove('active');
+      const submitBtn = document.getElementById('btnSaveSubmit');
+      submitBtn.disabled = false;
+      submitBtn.innerText = '저장하기';
       editingGifticonExistingImg = null;
+      editingGifticonExistingThumb = null;
     }
   </script>
 </body>

@@ -754,6 +754,7 @@
 
       const handleSave = (imgData) => {
         const docId = editId || String(Date.now());
+        const isNew = !editId;
         const dataObj = {
           brand: brand,
           name: name,
@@ -763,7 +764,7 @@
         };
 
         if (imgData) dataObj.img = imgData;
-        if (!editId) {
+        if (isNew) {
           dataObj.isUsed = false;
           dataObj.createdAt = Date.now();
         }
@@ -772,6 +773,11 @@
           .then(() => {
             setSyncStatus(false);
             closeModal();
+            if (isNew) {
+              alert('추가가 완료되었습니다! 🎁');
+            } else {
+              alert('수정이 완료되었습니다! ✨');
+            }
           })
           .catch(err => {
             console.error("저장 실패:", err);

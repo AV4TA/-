@@ -328,7 +328,7 @@
       overflow: hidden;
       border-radius: 16px;
       background: #fdfdfd;
-      touch-action: none; /* 브라우저 기본 스크롤 방지 */
+      touch-action: none;
       position: relative;
     }
     .gift-view-img-box img {
@@ -337,8 +337,9 @@
       object-fit: contain;
       display: block;
       transform-origin: center center;
-      transition: transform 0.05s ease-out;
       will-change: transform;
+      user-select: none;
+      -webkit-user-drag: none;
     }
     .zoom-tip {
       font-size: 0.78rem;
@@ -693,19 +694,23 @@
       document.getElementById('addModal').classList.add('active');
     }
 
-    /* 핀치 줌 & 드래그 제스처 변수 */
+    /* 핀치 줌 & 드래그 제스처 */
     let currentScale = 1;
+    let baseScale = 1;
     let posX = 0;
     let posY = 0;
     let startX = 0;
     let startY = 0;
-    let initialDistance = 0;
+    let initialDistance = null;
     let isDragging = false;
 
     function resetZoom() {
       currentScale = 1;
+      baseScale = 1;
       posX = 0;
       posY = 0;
+      initialDistance = null;
+      isDragging = false;
       updateTransform();
     }
 
@@ -731,18 +736,17 @@
       resetZoom();
     }
 
-    // 핀치 줌 및 터치 드래그 이벤트 리스너
     const pinchBox = document.getElementById('pinchContainer');
 
-    function getDistance(touches) {
-      const dx = touches[0].clientX - touches[1].clientX;
-      const dy = touches[0].clientY - touches[1].clientY;
-      return Math.sqrt(dx * dx + dy * dy);
+    function getDistance(t) {
+      return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
     }
 
     pinchBox.addEventListener('touchstart', (e) => {
       if (e.touches.length === 2) {
         initialDistance = getDistance(e.touches);
+        baseScale = currentScale;
+        isDragging = false;
       } else if (e.touches.length === 1) {
         isDragging = true;
         startX = e.touches[0].clientX - posX;
@@ -752,14 +756,11 @@
 
     pinchBox.addEventListener('touchmove', (e) => {
       e.preventDefault();
-      if (e.touches.length === 2) {
+      if (e.touches.length === 2 && initialDistance) {
         const dist = getDistance(e.touches);
-        if (initialDistance > 0) {
-          const factor = dist / initialDistance;
-          currentScale = Math.min(Math.max(1, currentScale * factor), 4);
-          initialDistance = dist;
-          updateTransform();
-        }
+        const scaleChange = dist / initialDistance;
+        currentScale = Math.min(Math.max(1, baseScale * scaleChange), 4);
+        updateTransform();
       } else if (e.touches.length === 1 && isDragging && currentScale > 1) {
         posX = e.touches[0].clientX - startX;
         posY = e.touches[0].clientY - startY;
@@ -768,25 +769,39 @@
     }, { passive: false });
 
     pinchBox.addEventListener('touchend', (e) => {
-      if (e.touches.length < 2) initialDistance = 0;
-      if (e.touches.length === 0) isDragging = false;
-      if (currentScale <= 1) {
-        posX = 0;
-        posY = 0;
-        updateTransform();
+      if (e.touches.length < 2) {
+        initialDistance = null;
+        baseScale = currentScale;
+      }
+      if (e.touches.length === 0) {
+        isDragging = false;
+        if (currentScale <= 1) {
+          posX = 0;
+          posY = 0;
+          currentScale = 1;
+          baseScale = 1;
+          updateTransform();
+        }
       }
     });
 
-    // 더블 탭 시 확대/축소 토글
-    let lastTap = 0;
+    // 더블 탭 확대/축소 토글
+    let lastTapTime = 0;
     pinchBox.addEventListener('touchend', (e) => {
-      const now = new Date().getTime();
-      const diff = now - lastTap;
-      if (diff < 300 && diff > 0) {
-        if (currentScale > 1) resetZoom();
-        else { currentScale = 2.5; updateTransform(); }
+      if (e.touches.length > 0) return;
+      const now = Date.now();
+      if (now - lastTapTime < 280) {
+        if (currentScale > 1.2) {
+          resetZoom();
+        } else {
+          currentScale = 2.2;
+          baseScale = 2.2;
+          posX = 0;
+          posY = 0;
+          updateTransform();
+        }
       }
-      lastTap = now;
+      lastTapTime = now;
     });
 
     function saveItem() {

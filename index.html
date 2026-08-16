@@ -417,9 +417,6 @@
         });
     }
 
-    // ----------------------------------------------------
-    // 고도화된 OCR 날짜 및 정보 파싱
-    // ----------------------------------------------------
     function handleImageOCR(input) {
       if (!input.files || !input.files[0]) return;
       const file = input.files[0];
@@ -448,10 +445,9 @@
       const text = rawText.replace(/\r/g, '');
       const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
-      // 날짜 파싱 (년.월.일 포맷 전체 검출)
       const datePatterns = [
         /(?:유효기간|만료일|기한|~)?\s*(202[0-9])[\.\-\/\s년]\s*([0-1]?[0-9])[\.\-\/\s월]\s*([0-3]?[0-9])\s*(?:일|까지)?/g,
-        /(202[0-9])(0[1-9]|1[0-2])([0-3][0-9])/g // YYYYMMDD 형태
+        /(202[0-9])(0[1-9]|1[0-2])([0-3][0-9])/g
       ];
 
       let matchedDates = [];
@@ -467,12 +463,10 @@
         }
       }
 
-      // 복수 일자가 있는 경우 만료일(마지막 일자) 세팅
       if (matchedDates.length > 0) {
         document.getElementById('giftDueDate').value = matchedDates[matchedDates.length - 1];
       }
 
-      // 브랜드 감지
       const brands = [
         '스타벅스', 'Starbucks', '투썸플레이스', '투썸', '메가커피', '컴포즈커피', '컴포즈',
         '배스킨라빈스', '베스킨라빈스', 'BHC', 'BBQ', '교촌치킨', '교촌', '맘스터치',
@@ -487,7 +481,6 @@
         }
       }
 
-      // 상품명 후보 탐색
       const ignoreWords = ['교환권', '모바일', '쿠폰', '바코드', '유효기간', '주문번호', '발행처', '사용처', '금액권', '사용불가', '원', 'No.', 'kakao', 'gift'];
       let candidateTitle = '';
 
@@ -508,9 +501,6 @@
       }
     }
 
-    // ----------------------------------------------------
-    // 이미지 압축 (Firestore 1MB 용량 초과 방지)
-    // ----------------------------------------------------
     function compressAndSaveImage(file, callback) {
       const reader = new FileReader();
       reader.onload = function(e) {
@@ -540,9 +530,6 @@
       reader.readAsDataURL(file);
     }
 
-    // ----------------------------------------------------
-    // 렌더링 & 정렬
-    // ----------------------------------------------------
     function getGiftDDay(dateStr) {
       if (!dateStr) return { text: '기한없음', urgent: false };
       const d = new Date(dateStr);
@@ -598,7 +585,7 @@
               <button class="gift-action-btn" onclick="editGifticon(${g.id})"><i class="fa-solid fa-pen"></i></button>
               <button class="gift-action-btn del" onclick="deleteGifticon(${g.id})"><i class="fa-solid fa-trash-can"></i></button>
             </div>
-            <div class="gift-img-wrap" onclick="viewImage('${g.img || 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=400'}')">
+            <div class="gift-img-wrap" onclick="viewImageById(${g.id})">
               <img src="${g.img || 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=400'}" alt="쿠폰">
               <div class="gift-dday-badge ${dday.urgent ? 'urgent' : ''}">${g.isUsed ? '사용완료' : dday.text}</div>
             </div>
@@ -650,9 +637,12 @@
       document.getElementById('addModal').classList.add('active');
     }
 
-    function viewImage(src) {
-      document.getElementById('enlargedImg').src = src;
-      document.getElementById('imgViewModal').classList.add('active');
+    function viewImageById(id) {
+      const target = gifticons.find(i => i.id === id);
+      if (target && target.img) {
+        document.getElementById('enlargedImg').src = target.img;
+        document.getElementById('imgViewModal').classList.add('active');
+      }
     }
 
     function closeImgModal() {

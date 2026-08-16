@@ -462,7 +462,7 @@
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    // 개별 문서 보관 컬렉션 참조: couple_space/data/gifticons
+    // 개별 문서 보관 컬렉션: couple_space/data/gifticons
     const giftCollection = db.collection("couple_space").doc("data").collection("gifticons");
 
     let gifticons = [];
@@ -473,7 +473,7 @@
     const syncDot = document.getElementById('syncDot');
     const syncText = document.getElementById('syncStatusText');
 
-    // 개별 문서 실시간 동기화 (용량 제한 완전 해소)
+    // 개별 문서 실시간 동기화
     giftCollection.onSnapshot((snapshot) => {
       const list = [];
       snapshot.forEach(doc => {
@@ -527,7 +527,7 @@
       const text = rawText.replace(/\r/g, '');
       const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
-      const globalDateRegex = /(202[0-9])[\.\-\/\s년]\s*([0-1]?[0-9])[\.\-\/\s월]\s*([0-3]?[0-9])/g;
+      const globalDateRegex = /(202[0-9]|203[0-9])[\.\-\/\s년]\s*([0-1]?[0-9])[\.\-\/\s월]\s*([0-3]?[0-9])/g;
       const allDates = [...text.matchAll(globalDateRegex)];
       if (allDates.length > 0) {
         const lastMatch = allDates[allDates.length - 1];
@@ -537,7 +537,7 @@
         document.getElementById('giftDueDate').value = `${year}-${month}-${day}`;
       }
 
-      const brands = ['스타벅스', 'Starbucks', '투썸플레이스', '투썸', '메가커피', '컴포즈', '배스킨라빈스', 'BHC', 'BBQ', '교촌', '올리브영', 'CU', 'GS25', '버거킹', '맥도날드', '도미노피자', '이디야', '파리바게뜨'];
+      const brands = ['스타벅스', 'Starbucks', '투썸플레이스', '투썸', '메가커피', '컴포즈', '배스킨라빈스', 'BHC', 'BBQ', '교촌', '올리브영', 'CU', 'GS25', '버거킹', '맥도날드', '도미노피자', '이디야', '파리바게뜨', '설빙', '빽다방', '공차'];
       for (let b of brands) {
         if (text.includes(b)) { 
           document.getElementById('giftBrand').value = b; 
@@ -547,7 +547,7 @@
 
       const ignoreWords = ['교환권', '모바일', '쿠폰', '바코드', '유효기간', '주문번호', '발행처', '원', 'kakao'];
       for (let line of lines) {
-        if (/(202[0-9])/.test(line) || /^\d+$/.test(line.replace(/[-\s]/g, '')) || line.length < 2 || line.length > 35) continue;
+        if (/(202[0-9]|203[0-9])/.test(line) || /^\d+$/.test(line.replace(/[-\s]/g, '')) || line.length < 2 || line.length > 35) continue;
         if (!ignoreWords.some(w => line.includes(w))) {
           const cand = line.replace(/[^\w\sㄱ-ㅎㅏ-ㅣ가-힣+()]/g, '').trim();
           if (cand.length >= 2 && !document.getElementById('itemName').value) {
@@ -558,7 +558,6 @@
       }
     }
 
-    // 선명도와 안정성이 확보된 1200px / 0.88 압축
     function compressAndSaveImage(file, callback) {
       const reader = new FileReader();
       reader.onload = function(e) {
@@ -705,11 +704,11 @@
       document.getElementById('addModal').classList.add('active');
     }
 
-    /* Panzoom 라이브러리 연동 */
     function initPanzoom() {
       const elem = document.getElementById('enlargedImg');
       if (panzoomInstance) {
         panzoomInstance.destroy();
+        panzoomInstance = null;
       }
       panzoomInstance = Panzoom(elem, {
         maxScale: 4.5,

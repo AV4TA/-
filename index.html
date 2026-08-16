@@ -462,6 +462,9 @@
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
+    // 개별 문서 보관 컬렉션 참조: couple_space/data/gifticons
+    const giftCollection = db.collection("couple_space").doc("data").collection("gifticons");
+
     let gifticons = [];
     let currentGiftFilter = 'available';
     let editingGifticonExistingImg = null;
@@ -470,14 +473,13 @@
     const syncDot = document.getElementById('syncDot');
     const syncText = document.getElementById('syncStatusText');
 
-    // DB 실시간 안전 동기화 (초기화 버그 방지)
-    db.collection("couple_space").doc("only_gifticons").onSnapshot({ includeMetadataChanges: true }, (doc) => {
-      if (doc.exists) {
-        const data = doc.data();
-        if (data && data.items) {
-          gifticons = data.items;
-        }
-      }
+    // 개별 문서 실시간 동기화 (용량 제한 완전 해소)
+    giftCollection.onSnapshot((snapshot) => {
+      const list = [];
+      snapshot.forEach(doc => {
+        list.push({ id: doc.id, ...doc.data() });
+      });
+      gifticons = list;
       if (syncDot) syncDot.className = 'sync-dot online';
       if (syncText) syncText.innerText = '실시간 동기화 완료';
       renderGifticons();
@@ -487,20 +489,14 @@
       if (syncText) syncText.innerText = '연결 오류';
     });
 
-    function saveData() {
-      if (syncDot) syncDot.className = 'sync-dot syncing';
-      if (syncText) syncText.innerText = '저장 중...';
-      db.collection("couple_space").doc("only_gifticons").set({ items: gifticons }, { merge: true })
-        .then(() => {
-          if (syncDot) syncDot.className = 'sync-dot online';
-          if (syncText) syncText.innerText = '실시간 동기화 완료';
-        })
-        .catch(err => {
-          console.error("저장 실패:", err);
-          if (syncDot) syncDot.className = 'sync-dot';
-          if (syncText) syncText.innerText = '저장 실패';
-          alert("데이터 저장 용량을 초과했거나 오류가 발생했습니다: " + err.message);
-        });
+    function setSyncStatus(isSyncing) {
+      if (isSyncing) {
+        if (syncDot) syncDot.className = 'sync-dot syncing';
+        if (syncText) syncText.innerText = '저장 중...';
+      } else {
+        if (syncDot) syncDot.className = 'sync-dot online';
+        if (syncText) syncText.innerText = '실시간 동기화 완료';
+      }
     }
 
     function handleImageOCR(input) {
@@ -562,7 +558,7 @@
       }
     }
 
-    // 1MB 제한을 넘지 않으면서 바코드가 선명한 최적 해상도(1000px / 0.85)
+    // 선명도와 안정성이 확보된 1200px / 0.88 압축
     function compressAndSaveImage(file, callback) {
       const reader = new FileReader();
       reader.onload = function(e) {
@@ -571,7 +567,7 @@
           const canvas = document.createElement('canvas');
           let width = img.width;
           let height = img.height;
-          const maxDim = 1000;
+          const maxDim = 1200;
 
           if (width > height && width > maxDim) {
             height = Math.round((height * maxDim) / width);
@@ -588,7 +584,7 @@
           ctx.imageSmoothingQuality = 'high';
           ctx.drawImage(img, 0, 0, width, height);
           
-          callback(canvas.toDataURL('image/jpeg', 0.85));
+          callback(canvas.toDataURL('image/jpeg', 0.88));
         };
         img.src = e.target.result;
       };
@@ -632,7 +628,7 @@
       } else if (sortType === 'name') {
         list.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
       } else if (sortType === 'recent') {
-        list.sort((a, b) => (b.id || 0) - (a.id || 0));
+        list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       }
 
       if (list.length === 0) {
@@ -651,10 +647,10 @@
         return `
           <div class="gift-card ${g.isUsed ? 'used' : ''}">
             <div class="gift-quick-actions">
-              <button class="gift-action-btn" title="수정" onclick="editGifticon(${g.id})"><i class="fa-solid fa-pen"></i></button>
-              <button class="gift-action-btn del" title="삭제" onclick="deleteGifticon(${g.id})"><i class="fa-solid fa-trash-can"></i></button>
+              <button class="gift-action-btn" title="수정" onclick="editGifticon('${g.id}')"><i class="fa-solid fa-pen"></i></button>
+              <button class="gift-action-btn del" title="삭제" onclick="deleteGifticon('${g.id}')"><i class="fa-solid fa-trash-can"></i></button>
             </div>
-            <div class="gift-img-wrap" onclick="viewImageById(${g.id})">
+            <div class="gift-img-wrap" onclick="viewImageById('${g.id}')">
               <img src="${g.img || 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=400'}" alt="쿠폰">
               <div class="gift-dday-badge ${dday.urgent ? 'urgent' : ''}">${g.isUsed ? '사용완료' : dday.text}</div>
             </div>
@@ -666,7 +662,7 @@
               </div>
               <div class="gift-footer">
                 <div class="gift-due-text">~${g.dueDate || '무기한'}</div>
-                <button class="btn-toggle-use ${g.isUsed ? 'is-used' : ''}" onclick="toggleGiftUse(${g.id})">
+                <button class="btn-toggle-use ${g.isUsed ? 'is-used' : ''}" onclick="toggleGiftUse('${g.id}')">
                   ${g.isUsed ? '취소' : '사용하기'}
                 </button>
               </div>
@@ -679,17 +675,20 @@
     function toggleGiftUse(id) {
       const target = gifticons.find(i => i.id === id);
       if (target) {
-        target.isUsed = !target.isUsed;
-        saveData();
-        renderGifticons();
+        setSyncStatus(true);
+        giftCollection.doc(id).update({
+          isUsed: !target.isUsed
+        }).then(() => setSyncStatus(false))
+          .catch(err => { console.error(err); setSyncStatus(false); });
       }
     }
 
     function deleteGifticon(id) {
       if (confirm('이 기프티콘을 삭제할까요?')) {
-        gifticons = gifticons.filter(i => i.id !== id);
-        saveData();
-        renderGifticons();
+        setSyncStatus(true);
+        giftCollection.doc(id).delete()
+          .then(() => setSyncStatus(false))
+          .catch(err => { console.error(err); setSyncStatus(false); });
       }
     }
     
@@ -752,62 +751,40 @@
 
       if (!name) return alert('상품명을 입력해주세요!');
 
-      if (editId) {
-        const targetIndex = gifticons.findIndex(g => g.id === parseInt(editId));
-        if (targetIndex > -1) {
-          if (fileInput.files && fileInput.files[0]) {
-            compressAndSaveImage(fileInput.files[0], function(compressedBase64) {
-              gifticons[targetIndex].brand = brand;
-              gifticons[targetIndex].name = name;
-              gifticons[targetIndex].dueDate = dueDate;
-              gifticons[targetIndex].memo = memo;
-              gifticons[targetIndex].img = compressedBase64;
-              saveData();
-              renderGifticons();
-              closeModal();
-            });
-            return;
-          } else {
-            gifticons[targetIndex].brand = brand;
-            gifticons[targetIndex].name = name;
-            gifticons[targetIndex].dueDate = dueDate;
-            gifticons[targetIndex].memo = memo;
-            saveData();
-            renderGifticons();
-            closeModal();
-            return;
-          }
-        }
-      }
+      setSyncStatus(true);
 
-      if (fileInput.files && fileInput.files[0]) {
-        compressAndSaveImage(fileInput.files[0], function(compressedBase64) {
-          gifticons.push({
-            id: Date.now(),
-            brand: brand,
-            name: name,
-            dueDate: dueDate,
-            memo: memo,
-            isUsed: false,
-            img: compressedBase64
-          });
-          saveData();
-          renderGifticons();
-          closeModal();
-        });
-      } else {
-        gifticons.push({
-          id: Date.now(),
+      const handleSave = (imgData) => {
+        const docId = editId || String(Date.now());
+        const dataObj = {
           brand: brand,
           name: name,
           dueDate: dueDate,
           memo: memo,
-          isUsed: false,
-          img: editingGifticonExistingImg || 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=400'
-        });
-        saveData();
-        renderGifticons();
-        closeModal();
+          updatedAt: Date.now()
+        };
+
+        if (imgData) dataObj.img = imgData;
+        if (!editId) {
+          dataObj.isUsed = false;
+          dataObj.createdAt = Date.now();
+        }
+
+        giftCollection.doc(docId).set(dataObj, { merge: true })
+          .then(() => {
+            setSyncStatus(false);
+            closeModal();
+          })
+          .catch(err => {
+            console.error("저장 실패:", err);
+            setSyncStatus(false);
+            alert("저장 중 오류가 발생했습니다: " + err.message);
+          });
+      };
+
+      if (fileInput.files && fileInput.files[0]) {
+        compressAndSaveImage(fileInput.files[0], handleSave);
+      } else {
+        handleSave(editingGifticonExistingImg || 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=400');
       }
     }
 

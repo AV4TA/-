@@ -556,6 +556,7 @@
       }
     }
 
+    // 고해상도(1600px) & 고품질(0.95) 이미지 저장 함수
     function compressAndSaveImage(file, callback) {
       const reader = new FileReader();
       reader.onload = function(e) {
@@ -564,7 +565,7 @@
           const canvas = document.createElement('canvas');
           let width = img.width;
           let height = img.height;
-          const maxDim = 800;
+          const maxDim = 1600; // 해상도 2배 상향 (1600px)
 
           if (width > height && width > maxDim) {
             height = Math.round((height * maxDim) / width);
@@ -577,8 +578,12 @@
           canvas.width = width;
           canvas.height = height;
           const ctx = canvas.getContext('2d');
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
           ctx.drawImage(img, 0, 0, width, height);
-          callback(canvas.toDataURL('image/jpeg', 0.8));
+          
+          // 압축 손실을 최소화하여 화질 대폭 개선 (0.95)
+          callback(canvas.toDataURL('image/jpeg', 0.95));
         };
         img.src = e.target.result;
       };

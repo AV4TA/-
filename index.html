@@ -34,7 +34,7 @@
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; -webkit-tap-highlight-color: transparent; }
-    body { background-color: var(--bg); color: var(--text); padding-bottom: 90px; }
+    body { background-color: var(--bg); color: var(--text); padding-bottom: 90px; font-size: 15px; }
 
     .app-header {
       background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
@@ -47,18 +47,21 @@
       z-index: 10;
     }
     .header-top { display: flex; justify-content: space-between; align-items: center; }
+    .header-title { font-size: 1.35rem; font-weight: 700; }
+    .header-sub { font-size: 0.88rem; opacity: 0.95; margin-top: 3px; }
+
     .container { max-width: 540px; margin: 0 auto; padding: 16px; }
 
     .sync-status {
       display: flex;
       align-items: center;
       gap: 6px;
-      font-size: 0.75rem;
+      font-size: 0.82rem;
       color: var(--text-sub);
       margin-bottom: 12px;
       justify-content: flex-end;
     }
-    .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: #a4b0be; }
+    .sync-dot { width: 9px; height: 9px; border-radius: 50%; background: #a4b0be; }
     .sync-dot.online { background: #2ed573; box-shadow: 0 0 8px #2ed573; }
     .sync-dot.syncing { background: #ffa502; }
 
@@ -74,10 +77,10 @@
       background: white;
       border: 1px solid var(--border);
       color: var(--text-sub);
-      padding: 8px 14px;
+      padding: 9px 15px;
       border-radius: 12px;
       font-weight: 600;
-      font-size: 0.82rem;
+      font-size: 0.88rem;
       cursor: pointer;
       transition: all 0.2s;
     }
@@ -88,10 +91,10 @@
       box-shadow: 0 4px 10px rgba(108, 92, 231, 0.3);
     }
     .sort-select {
-      padding: 7px 10px;
+      padding: 8px 12px;
       border-radius: 12px;
       border: 1px solid var(--border);
-      font-size: 0.8rem;
+      font-size: 0.85rem;
       color: #57606f;
       background: white;
       outline: none;
@@ -110,7 +113,7 @@
     }
     .gift-card.used { opacity: 0.55; filter: grayscale(80%); }
     .gift-img-wrap {
-      height: 130px;
+      height: 135px;
       background: #f8f9fc;
       position: relative;
       cursor: pointer;
@@ -125,11 +128,11 @@
       position: absolute;
       top: 8px;
       left: 8px;
-      background: rgba(0, 0, 0, 0.65);
+      background: rgba(0, 0, 0, 0.68);
       color: white;
-      font-size: 0.72rem;
+      font-size: 0.78rem;
       font-weight: 700;
-      padding: 4px 8px;
+      padding: 4px 9px;
       border-radius: 8px;
       backdrop-filter: blur(4px);
     }
@@ -144,36 +147,38 @@
       z-index: 2;
     }
     .gift-action-btn {
-      width: 28px;
-      height: 28px;
+      width: 30px;
+      height: 30px;
       border-radius: 50%;
       background: rgba(255,255,255,0.95);
       border: 1px solid rgba(0,0,0,0.08);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.75rem;
+      font-size: 0.82rem;
       cursor: pointer;
       color: #57606f;
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
     .gift-action-btn.del { color: #ff4757; }
 
-    .gift-body { padding: 12px; flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
-    .gift-brand { font-size: 0.75rem; color: var(--primary); font-weight: 700; }
-    .gift-name { font-size: 0.88rem; font-weight: 700; color: #2d3436; margin: 2px 0 8px; line-height: 1.3; }
-    .gift-memo { font-size: 0.75rem; color: #a4b0be; margin-bottom: 8px; }
+    .gift-body { padding: 13px; flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
+    .gift-brand { font-size: 0.82rem; color: var(--primary); font-weight: 700; }
+    .gift-name { font-size: 0.96rem; font-weight: 700; color: #2d3436; margin: 3px 0 8px; line-height: 1.35; }
+    .gift-memo { font-size: 0.8rem; color: #8395a7; margin-bottom: 8px; line-height: 1.3; }
+    .gift-due-text { font-size: 0.78rem; color: #8395a7; margin-bottom: 6px; font-weight: 500; }
     .btn-toggle-use {
       width: 100%;
-      padding: 6px;
+      padding: 8px 6px;
       border: none;
-      border-radius: 8px;
-      font-size: 0.75rem;
+      border-radius: 9px;
+      font-size: 0.82rem;
       font-weight: 700;
       background: #f1f2f6;
       color: #57606f;
       cursor: pointer;
       margin-top: auto;
+      transition: background 0.2s;
     }
     .btn-toggle-use.is-used { background: #2ed573; color: white; }
 
@@ -214,15 +219,16 @@
       background: white;
       border-radius: 24px;
       width: 100%;
-      max-width: 420px;
+      max-width: 430px;
       padding: 24px;
       max-height: 90vh;
       overflow-y: auto;
     }
-    .form-group { margin-bottom: 12px; }
-    .form-group label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 6px; color: #555; }
-    .form-control { width: 100%; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border); font-size: 0.9rem; outline: none; }
-    .btn { flex: 1; padding: 12px; border-radius: 12px; border: none; font-weight: 700; cursor: pointer; font-size: 0.9rem; }
+    .modal-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 16px; color: #2d3436; }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 0.88rem; font-weight: 600; margin-bottom: 6px; color: #444; }
+    .form-control { width: 100%; padding: 11px 14px; border-radius: 12px; border: 1px solid var(--border); font-size: 0.95rem; outline: none; }
+    .btn { flex: 1; padding: 13px; border-radius: 12px; border: none; font-weight: 700; cursor: pointer; font-size: 0.95rem; }
     .btn-primary { background: var(--primary); color: white; }
     .btn-secondary { background: #f1f2f6; color: #57606f; }
 
@@ -231,9 +237,9 @@
       background: #ede9fe;
       border: 1px solid #c7d2fe;
       color: var(--primary);
-      font-size: 0.78rem;
+      font-size: 0.82rem;
       font-weight: 600;
-      padding: 8px 12px;
+      padding: 9px 12px;
       border-radius: 10px;
       margin-top: 6px;
       align-items: center;
@@ -298,7 +304,7 @@
     <div class="header-top">
       <div>
         <div class="header-title">공주네 쿠폰방 🎁</div>
-        <p style="font-size: 0.8rem; opacity: 0.9; margin-top: 2px;">공주네 쿠폰방</p>
+        <p class="header-sub">공주네 기프티콘 보관함</p>
       </div>
     </div>
   </header>
@@ -331,11 +337,11 @@
   <!-- 추가/수정 모달 -->
   <div class="modal-overlay" id="addModal">
     <div class="modal-content" onclick="event.stopPropagation()">
-      <h3 id="modalTitle" style="margin-bottom:16px;">새 기프티콘 추가</h3>
+      <h3 id="modalTitle" class="modal-title">새 기프티콘 추가</h3>
       <input type="hidden" id="editItemId">
       
       <div class="form-group">
-        <label>바코드/쿠폰 사진 <span style="font-size:0.75rem; color:var(--primary); font-weight:normal;">(사진 올리면 유효기간 자동분석 ✨)</span></label>
+        <label>바코드/쿠폰 사진 <span style="font-size:0.78rem; color:var(--primary); font-weight:normal;">(사진 올리면 유효기간 자동분석 ✨)</span></label>
         <input type="file" class="form-control" id="giftImage" accept="image/*" onchange="handleImageOCR(this)">
         <div id="ocrLoader" class="ocr-loader">
           <i class="fa-solid fa-wand-magic-sparkles"></i>
@@ -578,8 +584,8 @@
         container.innerHTML = `
           <div style="grid-column: 1 / -1; text-align:center; padding: 60px 10px; color:#a4b0be;">
             <i class="fa-solid fa-gift" style="font-size:3rem; margin-bottom:14px; color:#c7d2fe;"></i>
-            <p style="font-size:0.95rem; font-weight:700; color:#4b5563;">보관된 기프티콘이 없습니다.</p>
-            <p style="font-size:0.82rem; margin-top:6px;">우측 하단의 <b>+</b> 버튼을 눌러 사진을 올려보세요!</p>
+            <p style="font-size:1.02rem; font-weight:700; color:#4b5563;">보관된 기프티콘이 없습니다.</p>
+            <p style="font-size:0.88rem; margin-top:6px;">우측 하단의 <b>+</b> 버튼을 눌러 사진을 올려보세요!</p>
           </div>
         `;
         return;
@@ -604,7 +610,7 @@
                 ${g.memo ? `<div class="gift-memo">${g.memo}</div>` : ''}
               </div>
               <div style="margin-top:auto;">
-                <div style="font-size:0.72rem; color:#a4b0be; margin-bottom:6px;">~${g.dueDate || '무기한'}</div>
+                <div class="gift-due-text">~${g.dueDate || '무기한'}</div>
                 <button class="btn-toggle-use ${g.isUsed ? 'is-used' : ''}" onclick="toggleGiftUse(${g.id})">
                   ${g.isUsed ? '취소' : '사용하기'}
                 </button>

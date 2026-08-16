@@ -24,6 +24,9 @@
   <!-- Tesseract.js (클라이언트 OCR) -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
+  <!-- Panzoom (모바일 부드러운 핀치 줌 라이브러리) -->
+  <script src="https://unpkg.com/@panzoom/panzoom/dist/panzoom.min.js"></script>
+
   <style>
     :root {
       --primary: #6c5ce7;
@@ -287,7 +290,7 @@
     .ocr-loader.active { display: flex; animation: pulse 1.5s infinite; }
     @keyframes pulse { 0% { opacity: 0.7; } 50% { opacity: 1; } 100% { opacity: 0.7; } }
 
-    /* 이미지 확대 모달 & 핀치 줌 뷰어 */
+    /* 이미지 확대 모달 & Panzoom 뷰어 */
     .gift-view-card {
       background: white;
       border-radius: 24px;
@@ -328,7 +331,6 @@
       overflow: hidden;
       border-radius: 16px;
       background: #fdfdfd;
-      touch-action: none;
       position: relative;
     }
     .gift-view-img-box img {
@@ -336,13 +338,11 @@
       height: 100%;
       object-fit: contain;
       display: block;
-      transform-origin: center center;
-      will-change: transform;
       user-select: none;
       -webkit-user-drag: none;
     }
     .zoom-tip {
-      font-size: 0.78rem;
+      font-size: 0.82rem;
       color: #8395a7;
       margin-top: 8px;
       display: flex;
@@ -436,7 +436,7 @@
     </div>
   </div>
 
-  <!-- 이미지 확대 모달 (핀치 줌 지원) -->
+  <!-- 이미지 확대 모달 -->
   <div class="modal-overlay" id="imgViewModal" onclick="closeImgModal()">
     <div class="gift-view-card" onclick="event.stopPropagation()">
       <button class="gift-modal-close-btn" onclick="closeImgModal()">
@@ -445,7 +445,7 @@
       <div class="gift-view-img-box" id="pinchContainer">
         <img id="enlargedImg" src="" alt="기프티콘 바코드">
       </div>
-      <div class="zoom-tip"><i class="fa-solid fa-magnifying-glass-plus"></i> 손가락 두 개로 자유롭게 확대/축소할 수 있어요</div>
+      <div class="zoom-tip"><i class="fa-solid fa-magnifying-glass-plus"></i> 손가락으로 자유롭게 확대/이동하세요</div>
     </div>
   </div>
 
@@ -465,6 +465,7 @@
     let gifticons = [];
     let currentGiftFilter = 'available';
     let editingGifticonExistingImg = null;
+    let panzoomInstance = null;
 
     const syncDot = document.getElementById('syncDot');
     const syncText = document.getElementById('syncStatusText');
@@ -694,31 +695,19 @@
       document.getElementById('addModal').classList.add('active');
     }
 
-    /* 핀치 줌 & 드래그 제스처 */
-    let currentScale = 1;
-    let baseScale = 1;
-    let posX = 0;
-    let posY = 0;
-    let startX = 0;
-    let startY = 0;
-    let initialDistance = null;
-    let isDragging = false;
-
-    function resetZoom() {
-      currentScale = 1;
-      baseScale = 1;
-      posX = 0;
-      posY = 0;
-      initialDistance = null;
-      isDragging = false;
-      updateTransform();
-    }
-
-    function updateTransform() {
-      const img = document.getElementById('enlargedImg');
-      if (img) {
-        img.style.transform = `translate(${posX}px, ${posY}px) scale(${currentScale})`;
+    /* Panzoom 라이브러리 연동 */
+    function initPanzoom() {
+      const elem = document.getElementById('enlargedImg');
+      if (panzoomInstance) {
+        panzoomInstance.destroy();
       }
+      panzoomInstance = Panzoom(elem, {
+        maxScale: 4.5,
+        minScale: 1,
+        contain: 'outside',
+        startScale: 1
+      });
+      elem.parentElement.addEventListener('wheel', panzoomInstance.zoomWithWheel);
     }
 
     function viewImageById(id) {
@@ -726,83 +715,21 @@
       if (target && target.img) {
         const img = document.getElementById('enlargedImg');
         img.src = target.img;
-        resetZoom();
         document.getElementById('imgViewModal').classList.add('active');
+        setTimeout(() => {
+          initPanzoom();
+        }, 50);
       }
     }
 
     function closeImgModal() {
       document.getElementById('imgViewModal').classList.remove('active');
-      resetZoom();
+      if (panzoomInstance) {
+        panzoomInstance.reset();
+        panzoomInstance.destroy();
+        panzoomInstance = null;
+      }
     }
-
-    const pinchBox = document.getElementById('pinchContainer');
-
-    function getDistance(t) {
-      return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
-    }
-
-    pinchBox.addEventListener('touchstart', (e) => {
-      if (e.touches.length === 2) {
-        initialDistance = getDistance(e.touches);
-        baseScale = currentScale;
-        isDragging = false;
-      } else if (e.touches.length === 1) {
-        isDragging = true;
-        startX = e.touches[0].clientX - posX;
-        startY = e.touches[0].clientY - posY;
-      }
-    }, { passive: false });
-
-    pinchBox.addEventListener('touchmove', (e) => {
-      e.preventDefault();
-      if (e.touches.length === 2 && initialDistance) {
-        const dist = getDistance(e.touches);
-        const scaleChange = dist / initialDistance;
-        currentScale = Math.min(Math.max(1, baseScale * scaleChange), 4);
-        updateTransform();
-      } else if (e.touches.length === 1 && isDragging && currentScale > 1) {
-        posX = e.touches[0].clientX - startX;
-        posY = e.touches[0].clientY - startY;
-        updateTransform();
-      }
-    }, { passive: false });
-
-    pinchBox.addEventListener('touchend', (e) => {
-      if (e.touches.length < 2) {
-        initialDistance = null;
-        baseScale = currentScale;
-      }
-      if (e.touches.length === 0) {
-        isDragging = false;
-        if (currentScale <= 1) {
-          posX = 0;
-          posY = 0;
-          currentScale = 1;
-          baseScale = 1;
-          updateTransform();
-        }
-      }
-    });
-
-    // 더블 탭 확대/축소 토글
-    let lastTapTime = 0;
-    pinchBox.addEventListener('touchend', (e) => {
-      if (e.touches.length > 0) return;
-      const now = Date.now();
-      if (now - lastTapTime < 280) {
-        if (currentScale > 1.2) {
-          resetZoom();
-        } else {
-          currentScale = 2.2;
-          baseScale = 2.2;
-          posX = 0;
-          posY = 0;
-          updateTransform();
-        }
-      }
-      lastTapTime = now;
-    });
 
     function saveItem() {
       const editId = document.getElementById('editItemId').value;

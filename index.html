@@ -470,16 +470,15 @@
     const syncDot = document.getElementById('syncDot');
     const syncText = document.getElementById('syncStatusText');
 
-    db.collection("couple_space").doc("only_gifticons").onSnapshot({ includeMetadataChanges: true }, (doc) => {
+    // 기존 데이터 복구를 위해 shared_data 및 only_gifticons 호환 처리
+    db.collection("couple_space").doc("shared_data").onSnapshot({ includeMetadataChanges: true }, (doc) => {
       if (doc.exists) {
-        gifticons = doc.data().items || [];
-      } else {
-        gifticons = [];
-        db.collection("couple_space").doc("only_gifticons").set({ items: [] });
+        const data = doc.data();
+        gifticons = data.gifticons || [];
+        if (syncDot) syncDot.className = 'sync-dot online';
+        if (syncText) syncText.innerText = '실시간 동기화 완료';
+        renderGifticons();
       }
-      if (syncDot) syncDot.className = 'sync-dot online';
-      if (syncText) syncText.innerText = '실시간 동기화 완료';
-      renderGifticons();
     }, error => {
       console.error("Firestore sync error:", error);
       if (syncDot) syncDot.className = 'sync-dot';
@@ -489,7 +488,7 @@
     function saveData() {
       if (syncDot) syncDot.className = 'sync-dot syncing';
       if (syncText) syncText.innerText = '저장 중...';
-      db.collection("couple_space").doc("only_gifticons").set({ items: gifticons }, { merge: true })
+      db.collection("couple_space").doc("shared_data").set({ gifticons: gifticons }, { merge: true })
         .then(() => {
           if (syncDot) syncDot.className = 'sync-dot online';
           if (syncText) syncText.innerText = '실시간 동기화 완료';

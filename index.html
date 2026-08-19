@@ -17,14 +17,9 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
-  <!-- Firebase v9 SDK (Compat) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
-  <!-- Tesseract.js (클라이언트 OCR) -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
-
-  <!-- Panzoom (모바일 핀치 줌 라이브러리) -->
   <script src="https://unpkg.com/@panzoom/panzoom/dist/panzoom.min.js"></script>
 
   <style>
@@ -43,7 +38,102 @@
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; -webkit-tap-highlight-color: transparent; }
     body { background-color: var(--bg); color: var(--text); padding-bottom: 90px; font-size: 16px; }
 
-    /* Header */
+    .pin-overlay {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #1e272e;
+      color: white;
+      z-index: 999999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      touch-action: manipulation;
+    }
+    .pin-overlay.hidden { display: none !important; }
+
+    .pin-badge { font-size: 2.5rem; margin-bottom: 10px; }
+    .pin-title { font-size: 1.3rem; font-weight: 900; margin-bottom: 6px; }
+    .pin-desc { font-size: 0.85rem; color: #a4b0be; margin-bottom: 18px; font-weight: 600; }
+
+    .pin-dots { display: flex; gap: 14px; margin-bottom: 18px; }
+    .pin-dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 2px solid #57606f;
+      transition: background 0.15s, border-color 0.15s, transform 0.15s;
+    }
+    .pin-dot.filled {
+      background: var(--primary);
+      border-color: var(--primary);
+      transform: scale(1.15);
+    }
+
+    .auto-login-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 22px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #ced6e0;
+      user-select: none;
+    }
+    .auto-login-box input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    .pin-keypad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      width: 100%;
+      max-width: 270px;
+    }
+    .pin-key {
+      height: 64px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: white;
+      font-size: 1.55rem;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      outline: none;
+    }
+    .pin-key:active {
+      background: rgba(255, 255, 255, 0.3);
+      transform: scale(0.94);
+    }
+    .pin-key.btn-action {
+      font-size: 1.05rem;
+      background: transparent;
+      color: #a4b0be;
+    }
+    .pin-key.btn-action:active {
+      color: white;
+      background: transparent;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-9px); }
+      40%, 80% { transform: translateX(9px); }
+    }
+    .shake { animation: shake 0.35s ease-in-out; }
+
     .app-header {
       background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
       color: white;
@@ -73,7 +163,6 @@
     .sync-dot.online { background: #2ed573; box-shadow: 0 0 8px #2ed573; }
     .sync-dot.syncing { background: #ffa502; }
 
-    /* Search Bar */
     .search-box-wrap {
       margin-bottom: 14px;
       position: relative;
@@ -102,7 +191,6 @@
     .search-input:focus { border-color: var(--primary); }
     .search-input::placeholder { color: #a4b0be; font-weight: 500; }
 
-    /* Filters (가로 스크롤 가능) */
     .filter-sort-row {
       display: flex;
       flex-direction: column;
@@ -159,7 +247,6 @@
       white-space: nowrap;
     }
 
-    /* Grid & Cards */
     .gift-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
     .gift-card {
       background: white;
@@ -189,7 +276,6 @@
       height: 100%;
       object-fit: contain;
       border-radius: 8px;
-      image-orientation: from-image;
     }
     .gift-dday-badge {
       position: absolute;
@@ -250,7 +336,6 @@
     }
     .btn-toggle-use.is-used { background: #2ed573; color: white; }
 
-    /* FAB */
     .fab {
       position: fixed;
       right: 20px;
@@ -272,7 +357,6 @@
     }
     .fab:active { transform: scale(0.92); }
 
-    /* Modal */
     .modal-overlay {
       display: none;
       position: fixed;
@@ -319,7 +403,6 @@
     .ocr-loader.active { display: flex; animation: pulse 1.5s infinite; }
     @keyframes pulse { 0% { opacity: 0.7; } 50% { opacity: 1; } 100% { opacity: 0.7; } }
 
-    /* 이미지 확대 모달 & Panzoom 뷰어 */
     .gift-view-card {
       background: white;
       border-radius: 24px;
@@ -369,7 +452,6 @@
       display: block;
       user-select: none;
       -webkit-user-drag: none;
-      image-orientation: from-image;
     }
     .zoom-tip {
       font-size: 0.82rem;
@@ -383,7 +465,41 @@
 </head>
 <body>
 
-  <!-- 헤더 -->
+  <div id="pinLockScreen" class="pin-overlay hidden">
+    <div class="pin-badge">🎁</div>
+    <div class="pin-title">공주네 쿠폰방</div>
+    <div class="pin-desc">6자리 암호를 입력해주세요</div>
+
+    <div class="pin-dots" id="pinDotsContainer">
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+    </div>
+
+    <label class="auto-login-box">
+      <input type="checkbox" id="chkAutoLogin" checked>
+      <span>이 기기에서 자동 로그인 유지</span>
+    </label>
+
+    <div class="pin-keypad">
+      <button type="button" class="pin-key" data-key="1">1</button>
+      <button type="button" class="pin-key" data-key="2">2</button>
+      <button type="button" class="pin-key" data-key="3">3</button>
+      <button type="button" class="pin-key" data-key="4">4</button>
+      <button type="button" class="pin-key" data-key="5">5</button>
+      <button type="button" class="pin-key" data-key="6">6</button>
+      <button type="button" class="pin-key" data-key="7">7</button>
+      <button type="button" class="pin-key" data-key="8">8</button>
+      <button type="button" class="pin-key" data-key="9">9</button>
+      <button type="button" class="pin-key btn-action" data-action="clear">취소</button>
+      <button type="button" class="pin-key" data-key="0">0</button>
+      <button type="button" class="pin-key btn-action" data-action="delete"><i class="fa-solid fa-delete-left"></i></button>
+    </div>
+  </div>
+
   <header class="app-header">
     <div class="header-top">
       <div>
@@ -399,7 +515,6 @@
       <span id="syncStatusText">서버 연결 중...</span>
     </div>
 
-    <!-- 브랜드 / 상품명 검색창 -->
     <div class="search-box-wrap">
       <i class="fa-solid fa-magnifying-glass"></i>
       <input type="text" id="searchInput" class="search-input" placeholder="브랜드명 또는 상품명 검색..." oninput="renderGifticons()">
@@ -427,7 +542,6 @@
 
   <button class="fab" id="fabAddBtn" onclick="openAddModal()"><i class="fa-solid fa-plus"></i></button>
 
-  <!-- 추가/수정 모달 -->
   <div class="modal-overlay" id="addModal">
     <div class="modal-content" onclick="event.stopPropagation()">
       <h3 id="modalTitle" class="modal-title">새 기프티콘 추가</h3>
@@ -469,7 +583,6 @@
     </div>
   </div>
 
-  <!-- 이미지 확대 모달 -->
   <div class="modal-overlay" id="imgViewModal" onclick="closeImgModal()">
     <div class="gift-view-card" onclick="event.stopPropagation()">
       <button class="gift-modal-close-btn" onclick="closeImgModal()">
@@ -483,6 +596,89 @@
   </div>
 
   <script>
+    const PIN_HASH = "";
+    let enteredPin = "";
+
+    async function sha256(str) {
+      if (window.crypto && crypto.subtle) {
+        const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+        return Array.from(new Uint8Array(buf)).map(x => x.toString(16).padStart(2, "0")).join("");
+      }
+      return "";
+    }
+
+    (function initAuth() {
+      const lockEl = document.getElementById("pinLockScreen");
+      if (!PIN_HASH || PIN_HASH.trim() === "") {
+        if (lockEl) lockEl.classList.add("hidden");
+        return;
+      }
+      const isAutoUnlocked = localStorage.getItem("gift_auth_token") === PIN_HASH;
+      const isSessionUnlocked = sessionStorage.getItem("gift_unlocked") === "true";
+      if (isAutoUnlocked || isSessionUnlocked) {
+        if (lockEl) lockEl.classList.add("hidden");
+      } else {
+        if (lockEl) lockEl.classList.remove("hidden");
+      }
+    })();
+
+    document.querySelectorAll('.pin-key').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const key = btn.getAttribute('data-key');
+        const action = btn.getAttribute('data-action');
+        if (key !== null) handleInput(key);
+        else if (action === 'delete') handleDelete();
+        else if (action === 'clear') handleClear();
+      });
+    });
+
+    function handleInput(digit) {
+      if (enteredPin.length >= 6) return;
+      enteredPin += digit;
+      updatePinDots();
+      if (enteredPin.length === 6) setTimeout(verifyPin, 100);
+    }
+
+    function handleDelete() {
+      if (enteredPin.length > 0) {
+        enteredPin = enteredPin.slice(0, -1);
+        updatePinDots();
+      }
+    }
+
+    function handleClear() {
+      enteredPin = "";
+      updatePinDots();
+    }
+
+    function updatePinDots() {
+      const dots = document.querySelectorAll(".pin-dot");
+      dots.forEach((dot, idx) => {
+        if (idx < enteredPin.length) dot.classList.add("filled");
+        else dot.classList.remove("filled");
+      });
+    }
+
+    async function verifyPin() {
+      const inputHash = await sha256(enteredPin);
+      if (inputHash === PIN_HASH) {
+        const isAuto = document.getElementById("chkAutoLogin").checked;
+        if (isAuto) localStorage.setItem("gift_auth_token", PIN_HASH);
+        sessionStorage.setItem("gift_unlocked", "true");
+        const lockEl = document.getElementById("pinLockScreen");
+        if (lockEl) lockEl.classList.add("hidden");
+      } else {
+        const dotsContainer = document.getElementById("pinDotsContainer");
+        if (dotsContainer) dotsContainer.classList.add("shake");
+        if (navigator.vibrate) navigator.vibrate(200);
+        setTimeout(() => {
+          if (dotsContainer) dotsContainer.classList.remove("shake");
+          handleClear();
+        }, 400);
+      }
+    }
+
     const firebaseConfig = {
       apiKey: "AIzaSyDOh1DpHEKe2RNaJC028ZMFQnGlKsvlvys",
       authDomain: "kobe-couple-app.firebaseapp.com",
@@ -494,8 +690,6 @@
 
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
-
-    // 개별 문서 보관 컬렉션: couple_space/data/gifticons
     const giftCollection = db.collection("couple_space").doc("data").collection("gifticons");
 
     let gifticons = [];
@@ -503,12 +697,11 @@
     let editingGifticonExistingImg = null;
     let editingGifticonExistingThumb = null;
     let panzoomInstance = null;
-    let currentOcrRequestId = 0; // OCR 메모리 누수 방지용 토큰
+    let currentOcrRequestId = 0;
 
     const syncDot = document.getElementById('syncDot');
     const syncText = document.getElementById('syncStatusText');
 
-    // 개별 문서 실시간 동기화
     giftCollection.onSnapshot((snapshot) => {
       const list = [];
       snapshot.forEach(doc => {
@@ -552,7 +745,7 @@
           }
         }
       }).then(({ data: { text } }) => {
-        if (requestId !== currentOcrRequestId) return; // 모달이 닫혔거나 다른 이미지가 들어온 경우 무시
+        if (requestId !== currentOcrRequestId) return;
         loader.classList.remove('active');
         extractGifticonInfo(text);
       }).catch(err => {
@@ -567,7 +760,6 @@
       const text = rawText.replace(/\r/g, '');
       const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
-      // 연도 인식 (2020년대 ~ 2030년대)
       const globalDateRegex = /(202[0-9]|203[0-9])[\.\-\/\s년]\s*([0-1]?[0-9])[\.\-\/\s월]\s*([0-3]?[0-9])/g;
       const allDates = [...text.matchAll(globalDateRegex)];
       if (allDates.length > 0) {
@@ -599,7 +791,6 @@
       }
     }
 
-    // 트래픽 절감을 위한 듀얼 압축 (원본 1200px + 썸네일 300px)
     function processDualImages(file, callback) {
       const reader = new FileReader();
       reader.onload = function(e) {
@@ -654,7 +845,6 @@
       const searchKeyword = (document.getElementById('searchInput') ? document.getElementById('searchInput').value : '').trim().toLowerCase();
       let list = [...gifticons];
 
-      // 휴지통 필터링 분기
       if (currentGiftFilter === 'trash') {
         list = list.filter(g => g.isDeleted === true);
       } else {
@@ -750,7 +940,6 @@
       }
     }
 
-    // 소프트 삭제 (휴지통 이동)
     function softDeleteGifticon(id) {
       if (confirm('이 기프티콘을 휴지통으로 이동할까요?')) {
         setSyncStatus(true);
@@ -763,7 +952,6 @@
       }
     }
 
-    // 휴지통 복구
     function restoreGifticon(id) {
       setSyncStatus(true);
       giftCollection.doc(id).update({
@@ -774,7 +962,6 @@
       }).catch(err => { console.error(err); setSyncStatus(false); });
     }
 
-    // 완전 영구 삭제
     function permanentDeleteGifticon(id) {
       if (confirm('영구 삭제하시겠습니까? 복구할 수 없습니다.')) {
         setSyncStatus(true);
@@ -848,7 +1035,6 @@
 
       if (!name) return alert('상품명을 입력해주세요!');
 
-      // 중복 클릭 방지 (버튼 비활성화)
       submitBtn.disabled = true;
       submitBtn.innerText = '저장 중...';
       setSyncStatus(true);
@@ -924,7 +1110,7 @@
     }
 
     function closeModal() {
-      currentOcrRequestId++; // 진행 중인 OCR 분석 토큰 무효화
+      currentOcrRequestId++;
       document.getElementById('addModal').classList.remove('active');
       document.getElementById('itemName').value = '';
       document.getElementById('itemMemo').value = '';

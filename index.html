@@ -468,11 +468,9 @@
   <div id="pinLockScreen" class="pin-overlay hidden">
     <div class="pin-badge">🎁</div>
     <div class="pin-title">공주네 쿠폰방</div>
-    <div class="pin-desc">6자리 암호를 입력해주세요</div>
+    <div class="pin-desc">4자리 암호를 입력해주세요</div>
 
     <div class="pin-dots" id="pinDotsContainer">
-      <div class="pin-dot"></div>
-      <div class="pin-dot"></div>
       <div class="pin-dot"></div>
       <div class="pin-dot"></div>
       <div class="pin-dot"></div>
@@ -596,7 +594,7 @@
   </div>
 
   <script>
-    const PIN_HASH = "";
+    const PIN_HASH = "e3820a4be5a6eb883b632616212170366eb2531a78dc1b0d2d3e91129b0f4fdc";
     let enteredPin = "";
 
     async function sha256(str) {
@@ -634,10 +632,10 @@
     });
 
     function handleInput(digit) {
-      if (enteredPin.length >= 6) return;
+      if (enteredPin.length >= 4) return;
       enteredPin += digit;
       updatePinDots();
-      if (enteredPin.length === 6) setTimeout(verifyPin, 100);
+      if (enteredPin.length === 4) setTimeout(verifyPin, 100);
     }
 
     function handleDelete() {
